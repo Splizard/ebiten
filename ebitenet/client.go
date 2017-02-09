@@ -5,6 +5,7 @@ import "net"
 import "time"
 import "os"
 import "bytes"
+import "io"
 
 type Client struct {
 	Number byte
@@ -31,7 +32,7 @@ func (client *Client) read() {
 	for {
 		//Read header.
 		header := make([]byte, 3)
-		count, err := client.conn.Read(header)
+		count, err := io.ReadFull(client.conn, header)
 		if err != nil {
 			client.conn.Close()
 			fmt.Println("disconnected.", err)
@@ -56,7 +57,7 @@ func (client *Client) read() {
 		if message.Len == 255 {
 			//Read length.
 			l := make([]byte, 8)
-			count, err := client.conn.Read(l)
+			count, err := io.ReadFull(client.conn, l)
 			if err != nil {
 				client.conn.Close()
 				fmt.Println("disconnected.", err)
@@ -69,7 +70,7 @@ func (client *Client) read() {
 			
 			message.Data = make([]byte, length)
 			
-			count, err = client.conn.Read(message.Data)
+			count, err = io.ReadFull(client.conn, message.Data)
 			if err != nil {
 				client.conn.Close()
 				fmt.Println("disconnected.", err)
@@ -85,7 +86,7 @@ func (client *Client) read() {
 		} else if message.Len > 0 {
 			message.Data = make([]byte, message.Len)
 		
-			count, err := client.conn.Read(message.Data)
+			count, err := io.ReadFull(client.conn, message.Data)
 			if err != nil {
 				client.conn.Close()
 				fmt.Println("disconnected.", err)
