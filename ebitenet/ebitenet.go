@@ -68,6 +68,8 @@ type Network struct {
 	LastSentFrame byte
 	SelfSync byte
 	Skip byte
+	
+	Singleplayer bool
 }
 
 func Int(value int64) []byte {
@@ -129,6 +131,9 @@ func (network *Network) Send(command byte, data []byte) {
 			network.self <- Message{Command:command, Len: byte(len(data)), Data:data, Frame:network.LastSentFrame}
 		}
 		network.Sent = true
+	} else if !network.Sent && len(network.clients) == 0 {
+		network.self <- Message{Command:command, Len: byte(len(data)), Data:data, Frame:1}
+		network.Sent = true
 	}
 }
 
@@ -137,7 +142,6 @@ func (network *Network) Update() {
 	if len(network.clients) > 0 {
 		network.Ping()
 	}
-	
 	network.SendInputs()
 
 	//If nothing was sent, send an empty command.
@@ -145,6 +149,26 @@ func (network *Network) Update() {
 		network.Send(SendNothing, nil)
 	}
 	network.Sent = false
+
+	if len(network.clients) == 0 {
+		network.Singleplayer = true
+		message := <- network.self
+		
+		//Process the message
+		if message.Command == SendKey {
+			network.inputs[message.Data[0]] = true
+			network.inputs = make(map[byte]bool)
+		} else if message.Command > SendKey {
+			//TODO deal with multiple players.
+			network.Event(message.Command, 1, message.Data)
+		}
+		
+		return
+	}
+	if network.Singleplayer {
+		network.self = make(chan Message, 60)
+		network.Singleplayer = false
+	}
 	
 	if network.Synced {
 		network.Frame++

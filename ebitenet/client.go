@@ -4,6 +4,7 @@ import "fmt"
 import "net"
 import "time"
 import "os"
+import "bytes"
 
 type Client struct {
 	Number byte
@@ -49,9 +50,39 @@ func (client *Client) read() {
 		message.Len = header[1]
 		message.Frame = header[2]
 		
+		//println("read net:", message.Len)
 		
 		//Read data.
-		if message.Len > 0 {
+		if message.Len == 255 {
+			//Read length.
+			l := make([]byte, 8)
+			count, err := client.conn.Read(l)
+			if err != nil {
+				client.conn.Close()
+				fmt.Println("disconnected.", err)
+				os.Exit(1)
+				break
+			}
+			var length int64
+			var b = bytes.NewReader(l)
+			GetInt(b, &length)
+			
+			message.Data = make([]byte, length)
+			
+			count, err = client.conn.Read(message.Data)
+			if err != nil {
+				client.conn.Close()
+				fmt.Println("disconnected.", err)
+				os.Exit(1)
+				break
+			}
+			
+			if count != int(length) {
+				fmt.Println(message.Command-Command, "data packet wrong size!", count, "expecting", length)
+				continue
+			}
+		
+		} else if message.Len > 0 {
 			message.Data = make([]byte, message.Len)
 		
 			count, err := client.conn.Read(message.Data)
@@ -63,7 +94,7 @@ func (client *Client) read() {
 			}
 			
 			if count != int(message.Len) {
-				fmt.Println("data packet wrong size!", err)
+				fmt.Println(message.Command-Command, "data packet wrong size!", count, "expecting", int(message.Len))
 				continue
 			}
 		}
@@ -102,9 +133,17 @@ func (client *Client) write() {
 			message.Len = byte(len(pingtime))
 		}	
 		
-		client.conn.Write([]byte{message.Command, message.Len, message.Frame})
-		if message.Len > 0 {
+		//println("write net: ", len(message.Data))
+		if len(message.Data) > 255 {
+			client.conn.Write([]byte{message.Command, 255, message.Frame})
+			client.conn.Write(Int(int64(len(message.Data))))
 			client.conn.Write(message.Data)
+			fmt.Println("Sent large packet of: ", len(message.Data))
+		} else {
+			client.conn.Write([]byte{message.Command, message.Len, message.Frame})
+			if message.Len > 0 {
+				client.conn.Write(message.Data)
+			}
 		}
 	}
 }
