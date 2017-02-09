@@ -106,6 +106,7 @@ func (network *Network) Send(command byte, data []byte) {
 		
 			//Lockstep, choose a target frame to send the message to.
 			var FrameDelay = (byte(greatestPing/(time.Millisecond*16))+1)
+			FrameDelay = FrameDelay + FrameDelay/2
 			var FrameTarget = network.Frame+FrameDelay
 		
 			FrameTarget = FrameTarget % 60
