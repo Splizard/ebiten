@@ -55,6 +55,10 @@ type Network struct {
 	//Mutex
 	clients []*Client
 	
+	//LAN discovery.
+	peer chan Peer
+	peers chan Peer
+	
 	//We are a client to ourselves.
 		self chan Message
 	
@@ -155,10 +159,12 @@ func (network *Network) Update() {
 		network.Singleplayer = true
 		message := <- network.self
 		
+		network.inputs = make(map[byte]bool)
+		
 		//Process the message
 		if message.Command == SendKey {
 			network.inputs[message.Data[0]] = true
-			network.inputs = make(map[byte]bool)
+			
 		} else if message.Command > SendKey {
 			//TODO deal with multiple players.
 			network.Event(message.Command, 1, message.Data)
@@ -207,10 +213,12 @@ func (network *Network) Update() {
 			}
 		}
 
+		network.inputs = make(map[byte]bool)
+
 		//Process the message
 		if message.Command == SendKey {
 			network.inputs[message.Data[0]] = true
-			network.inputs = make(map[byte]bool)
+			
 		} else if message.Command > SendKey {
 			var id byte = 2
 			if network.Hosting {
@@ -244,9 +252,8 @@ func (network *Network) Update() {
 			os.Exit(1)
 		}
 		//Process the message
-			
+		client.inputs = make(map[byte]bool)
 		if message.Command == SendKey {
-			client.inputs = make(map[byte]bool)
 			client.inputs[message.Data[0]] = true
 		} else if message.Command > SendKey {
 			var id byte = 1
@@ -279,6 +286,8 @@ func (network *Network) Connect(address string) (err error) {
 
 	network.self = make(chan Message, 60)
 	
+	network.inputs = make(map[byte]bool)
+	
 	network.Id = 2
 
 	go client.handle()
@@ -295,6 +304,10 @@ func (network *Network) Host() (err error) {
 	network.Hosting= true
 	
 	network.self = make(chan Message, 60)
+	
+	network.inputs = make(map[byte]bool)
+	
+	go multicastServer(network.Port)
 	
 	network.clients = make([]*Client, 0)
 	go func() {
