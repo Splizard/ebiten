@@ -191,6 +191,10 @@ func (network *Network) Update() {
 		return
 	}
 	
+	if !network.Synced {
+		network.self = make(chan Message, 60)
+	}
+	
 	if network.Synced {
 		var message Message
 		
