@@ -262,8 +262,6 @@ func (network *Network) Update() {
 			}
 			//TODO deal with multiple players.
 			network.Event(message.Command, id, message.Data)
-			
-			println(string(message.Data))
 			goto getframe
 		}
 		
