@@ -86,6 +86,18 @@ func GetInt(data *bytes.Reader, value *int64) {
 	binary.Read(data, binary.LittleEndian, value)
 }
 
+func (network *Network) Request(command byte, data []byte) {
+	for _, client := range network.clients {
+		client.send <- Message{Command:command, Len: byte(len(data)), Data:data, Frame:0}
+	}
+}
+
+func (network *Network) Respond(client byte, command byte, data []byte) {
+	if len(network.clients) > int(client) {
+		network.clients[int(client)].send <- Message{Command:command, Len: byte(len(data)), Data:data, Frame:0}
+	}
+}
+
 func (network *Network) Send(command byte, data []byte) {
 	if !network.Sent && len(network.clients) > 0  {
 		
@@ -238,7 +250,23 @@ func (network *Network) Update() {
 		var message Message
 		
 		//var now = time.Now()
+		
+		getframe:
 		message = <- client.recieve
+		
+		if message.Frame == 0 {
+		
+			var id byte = 1
+			if network.Hosting {
+				id = 2
+			}
+			//TODO deal with multiple players.
+			network.Event(message.Command, id, message.Data)
+			
+			println(string(message.Data))
+			goto getframe
+		}
+		
 		//fmt.Println("waited for message ", time.Since(now))
 		
 		//fmt.Println("Frame:", network.Frame)
